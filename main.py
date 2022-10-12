@@ -2,7 +2,7 @@ from flask import Flask
 import subprocess
 from flask import jsonify
 from flask import request
-from os.path import exists
+import os
 
 # Have to do
 # List file and folder
@@ -106,6 +106,46 @@ def create_file():
     else:
         return jsonify(status=500,message='Invalid request method',data='')
 
-# @app.route('/copy-files',methods=['GET', 'POST'])
-# def copy_files():
-#     pass
+
+@app.route('/create-folder',methods=['GET', 'POST'])
+#params
+# folder_name : string
+# force_create : String (True , False)
+# backup_old : String (True , False)
+def create_folder():
+    if request.method == 'POST' or request.method == 'GET':
+        folder_name = request.form.get('folder_name',None)
+        force_create = request.form.get('force_create','False')
+        backup_old = request.form.get('backup_old','False')
+        if folder_name is not None:
+
+            folder_exist = os.path.isdir(f"{public_path}/{folder_name}")
+
+            if(folder_exist != True or (folder_exist and force_create == 'True')):
+    
+                if(folder_exist and force_create == 'True' and backup_old == 'True'):
+                    command(f"zip -r {public_path}/{folder_name}-backup-at-$(date +%s).zip {public_path}/{folder_name}")
+                
+                if(folder_exist and force_create == 'True'):
+                    command(f"rm -rf {public_path}/{folder_name}")
+
+                (output, error) = command(f"mkdir {public_path}/{folder_name}")
+
+                if(error):
+                    print(error)
+                    return jsonify(status=400,message='Something went wrong',data='')
+                else:
+                    print(output)
+                    #Vyte value convert to string
+                    #output.decode("utf-8")
+                    return jsonify(status=200,message=f"Folder ({folder_name}) created successfully.",data='')
+            else:
+                return jsonify(status=400,message=f"Folder ({folder_name}) already exisit.",data='')
+                    
+        else:
+            return jsonify(status=500,message='Invalid folder name',data='')
+    else:
+        return jsonify(status=500,message='Invalid request method',data='')
+
+
+
