@@ -1,8 +1,13 @@
 from flask import Flask
-import subprocess
-from flask import jsonify
-from flask import request
-import os
+from modules.file import File
+from modules.folder import Folder
+
+# import subprocess
+# from flask import jsonify
+# from flask import request
+# import os
+# from os.path import exists
+
 
 # Have to do
 # List file and folder
@@ -13,139 +18,92 @@ app = Flask(__name__)
 
 public_path = "/home/chamath/Projects/file-manager-flask/"
 
+@app.route('/list',methods=['GET', 'POST'])
+def list():
+    return File(public_path).list()
 
-def command (command_str):
-    command_str = command_str
-    command = subprocess.Popen([command_str], stdout=subprocess.PIPE, shell=True)
-    (output, error) = command.communicate()
-
-    # print(f"\n----------------------\n {output} \n----------------------\n")
-    # print(f"\n----------------------\n {error} \n----------------------\n")
-    return (output,error)
-
-@app.route('/list-files',methods=['GET', 'POST'])
-def list_files():
-
-    fields = ['permissions','links','owner','group','size','date','time','name']
-    
-    manupulated_output = []
-
-    # command_str = f"ls -lha --time-style=long-iso {public_path}"
-    # command = subprocess.Popen([command_str], stdout=subprocess.PIPE, shell=True)
-    # (output, error) = command.communicate()
-    
-    (output,error) = command(f"ls -lha --time-style=long-iso {public_path}")
-
-    if(error):
-        print(error)
-        return jsonify(status=400,message='Something went wrong',data='')
-    else:
-        output_json = output.decode('utf8').replace("'", '"').split("\n")
-        
-        #Remove directory count from list
-        output_json.pop(0)
-        #Remove empty values from list - last val
-        filtered_output_json = list(filter(None,output_json))
-
-        for index,detail_row in enumerate(filtered_output_json):
-            
-            detail_fields = detail_row.split(" ")
-            
-            #Remove empty values from list
-            filtered_detail_fields = list(filter(None,detail_fields))
-            
-            #https://stackoverflow.com/questions/53668976/list-append-is-overwriting-my-previous-values
-            #Should create new dictionary in eacg iterate, otherwise, it will pass refference of same dictionary
-            named_details = {}
-            for index,detail_field in enumerate(filtered_detail_fields):
-                
-                #print(f"{index} : {detail_field}")
-                named_details[fields[index]] = detail_field
-              
-            manupulated_output.insert(index,named_details)
-            print("\n --------------------------- \n")
-            print(manupulated_output)
-                
-
-        return jsonify(status=200,message='',data=manupulated_output)
+@app.route('/archive',methods=['GET', 'POST'])
+def archive():
+    pass
   
-@app.route('/create-file',methods=['GET', 'POST'])
+@app.route('/file/create',methods=['GET', 'POST'])
 #params
-# file_name : string
+# file_name : String
 # force_create : String (True , False)
 # backup_old : String (True , False)
-def create_file():
-    if request.method == 'POST' or request.method == 'GET':
-        file_name = request.form.get('file_name',None)
-        force_create = request.form.get('force_create','False')
-        backup_old = request.form.get('backup_old','False')
-        if file_name is not None:
+def file_create():
+    return File(public_path).create()
 
-            file_exist = exists(f"{public_path}/{file_name}")
-
-            if(file_exist != True or (file_exist and force_create == 'True')):
-
-                if(file_exist == True and force_create == 'True' and backup_old == 'True'):
-                    command(f"cp {file_name} {file_name}-backup-at-$(date +%s)")
-
-                (output, error) = command(f"touch {public_path}/{file_name}")
-
-                if(error):
-                    print(error)
-                    return jsonify(status=400,message='Something went wrong',data='')
-                else:
-                    print(output)
-                    #Vyte value convert to string
-                    #output.decode("utf-8")
-                    return jsonify(status=200,message=f"{file_name} created successfully.",data='')
-            else:
-                return jsonify(status=400,message=f"{file_name} already exisit.",data='')
-                    
-        else:
-            return jsonify(status=500,message='Invalid file name',data='')
-    else:
-        return jsonify(status=500,message='Invalid request method',data='')
-
-
-@app.route('/create-folder',methods=['GET', 'POST'])
+@app.route('/file/delete',methods=['GET', 'POST'])
 #params
-# folder_name : string
+# file_name : String
+# backup_old : String (True , False)
+def file_delete():
+    pass
+
+@app.route('/file/copy',methods=['GET', 'POST'])
+#params
+# file_names : String Array
+# destination : String
+# force_copy : String
+# backup_old : String
+def file_copy():
+    pass
+
+@app.route('/file/move',methods=['GET', 'POST'])
+#params
+# file_names : String Array
+# destination : String
+# force_copy : String
+# backup_old : String
+def file_move():
+    pass
+
+@app.route('/file/rename',methods=['GET', 'POST'])
+#params
+# file_name : String
+# backup_old : String
+def file_rename():
+    pass
+
+
+@app.route('/folder/create',methods=['GET', 'POST'])
+#params
+# folder_name : String
 # force_create : String (True , False)
 # backup_old : String (True , False)
-def create_folder():
-    if request.method == 'POST' or request.method == 'GET':
-        folder_name = request.form.get('folder_name',None)
-        force_create = request.form.get('force_create','False')
-        backup_old = request.form.get('backup_old','False')
-        if folder_name is not None:
+def folder_create():
+    return Folder(public_path).create()
 
-            folder_exist = os.path.isdir(f"{public_path}/{folder_name}")
+@app.route('/folder/delete',methods=['GET', 'POST'])
+#params
+# folder_name : String
+# backup_old : String (True , False)
+def folder_delete():
+    pass
 
-            if(folder_exist != True or (folder_exist and force_create == 'True')):
-    
-                if(folder_exist and force_create == 'True' and backup_old == 'True'):
-                    command(f"zip -r {public_path}/{folder_name}-backup-at-$(date +%s).zip {public_path}/{folder_name}")
-                
-                if(folder_exist and force_create == 'True'):
-                    command(f"rm -rf {public_path}/{folder_name}")
+@app.route('/folder/copy',methods=['GET', 'POST'])
+#params
+# folder_names : String Array
+# destination : String
+# force_copy : String
+# backup_old : String
+def folder_copy():
+    pass
 
-                (output, error) = command(f"mkdir {public_path}/{folder_name}")
+@app.route('/folder/move',methods=['GET', 'POST'])
+#params
+# folder_names : String Array
+# destination : String
+# force_move : String
+# backup_old : String
+def folder_move():
+    pass
 
-                if(error):
-                    print(error)
-                    return jsonify(status=400,message='Something went wrong',data='')
-                else:
-                    print(output)
-                    #Vyte value convert to string
-                    #output.decode("utf-8")
-                    return jsonify(status=200,message=f"Folder ({folder_name}) created successfully.",data='')
-            else:
-                return jsonify(status=400,message=f"Folder ({folder_name}) already exisit.",data='')
-                    
-        else:
-            return jsonify(status=500,message='Invalid folder name',data='')
-    else:
-        return jsonify(status=500,message='Invalid request method',data='')
-
-
+@app.route('/folder/rename',methods=['GET', 'POST'])
+#params
+# folder_name : String
+# backup_old : String
+def folder_rename():
+    pass
 
